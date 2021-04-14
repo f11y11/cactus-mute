@@ -22,5 +22,9 @@ This repository contains one of the cogs created for Cactus bot - dedicated for 
 
 ## Side note about mute command:
 If you want to mute someone for 30 minutes, please specify duration like this: 0h30m. Otherwise you'll get a formatting error.
-
+\
+\
+\
 If you want to see this cog in action, you can consider joining the server the bot was made for. [Join here](https://discord.gg/sQVdbX8rBM)
+
+If you need support related to this code/repository, please join [this](https://discord.gg/9aRBdpJ) server and not the server above as [this](https://discord.gg/9aRBdpJ) is my development server.
