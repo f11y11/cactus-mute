@@ -1,48 +1,12 @@
-import asyncio
 import discord
 from pymongo.errors import DuplicateKeyError
 import datetime
 from discord.ext import commands, tasks
 from .modules.database import col_mutes
+from .modules.dtparsing import to_timedelta
 
 guild_id = 692427294261772289
 muted_role_id = 725056676725653526
-
-
-def apply_mute(user: discord.Member, duration, author: discord.Member, channel: discord.TextChannel):
-    """
-    I import this function in one of my cogs where it applies mute after warning the user. You can get rid of the function entirely if you don't want to import it/apply mutes elsewhere.
-    """
-    if duration != "0h0m":  # if a duration is specified, try parsing it to retrieve a datetime object.
-        try:
-            duration_self = datetime.datetime.strptime(duration, "%Hh%Mm")
-            duration_dt = datetime.timedelta(
-                hours=duration_self.hour, minutes=duration_self.minute)
-        except ValueError as e:
-            raise e
-
-    mute_dict = {
-        "_id": user.id,  # required
-        # required, if statement clearly states why is it required.
-        "infinite": True if duration is "0h0m" else False,
-        "muted_by": author.id,  # not required
-        "in_channel": channel.id,  # required to post unmute message
-        "applied_at": datetime.datetime.now(),  # required
-        "muted_until": datetime.datetime.now() + datetime.timedelta(hours=duration_self.hour, minutes=duration_self.minute)  # required
-    }  # this dictionary will be pushed into mutes column
-
-    try:
-        col_mutes.insert_one(mute_dict)
-    except DuplicateKeyError:
-        current_muted_until = col_mutes.find_one({"_id": user.id})[
-            "muted_until"]
-        col_mutes.update_one({"_id": user.id}, {"$set": {"muted_until": current_muted_until +
-                                                         datetime.timedelta(hours=duration_self.hour, minutes=duration_self.minute)}})
-        # updated the existing mute | if it was 30 minutes long, if you muted again for 5 hours after 10 minutes passed, it'll be 5 hours and 20 minutes of mute in total.
-    finally:
-        print(f"applied mute to {user}")
-        return True
-
 
 class MuteMongo():
     def __init__(self, _id):
@@ -65,6 +29,38 @@ class MuteMongo():
             "muted_until": self._muted_until
         }
 
+def apply_mute(user: discord.Member, duration, author: discord.Member, channel: discord.TextChannel):
+    """
+    I import this function in one of my cogs where it applies mute after warning the user.
+    You can get rid of the function entirely if you don't want to import it/apply mutes elsewhere.
+    """
+    if duration != "0h0m":  # if a duration is specified, try parsing it to retrieve a datetime object.
+        try:
+            duration_self = datetime.datetime.strptime(duration, "%Hh%Mm")
+        except ValueError as e:
+            raise e
+
+    mute_dict = {
+        "_id": user.id,  # required
+        # required, if statement clearly states why is it required.
+        "infinite": True if duration.seconds == 0 else False,
+        "muted_by": author.id,  # not required
+        "in_channel": channel.id,  # required to post unmute message
+        "applied_at": datetime.datetime.now(),  # required
+        "muted_until": datetime.datetime.now() + datetime.timedelta(hours=duration_self.hour, minutes=duration_self.minute)  # required
+    }  # this dictionary will be pushed into mutes column
+
+    try:
+        col_mutes.insert_one(mute_dict)
+    except DuplicateKeyError:
+        current_muted_until = col_mutes.find_one({"_id": user.id})[
+            "muted_until"]
+        col_mutes.update_one({"_id": user.id}, {"$set": {"muted_until": current_muted_until +
+                                                         datetime.timedelta(hours=duration_self.hour, minutes=duration_self.minute)}})
+        # updated the existing mute | if it was 30 minutes long, if you muted again for 5 hours after 10 minutes passed, it'll be 5 hours and 20 minutes of mute in total.
+    finally:
+        print(f"applied mute to {user}")
+        return True
 
 class MuteCog(commands.Cog):
     def __init__(self, client):
@@ -73,34 +69,29 @@ class MuteCog(commands.Cog):
 
     @commands.has_permissions(manage_messages=True)
     @commands.command()
-    async def mute(self, ctx, user: discord.Member, duration="0h0m", *, reason: str = "Unspecified"):
-        if duration != "0h0m":
-            try:
-                duration_self = datetime.datetime.strptime(duration, "%Hh%Mm")
-            except ValueError:
-                await ctx.send("Please specify mute duration in the following format `%Hh%Mm`")
+    async def mute(self, ctx, user: discord.Member, duration:to_timedelta = to_timedelta('0s'), *, reason: str = "Unspecified"):
+        if duration == True:
+            await ctx.send("Invalid string format. Time must be in the form <number>[s|m|h|d|w].")
 
         mute_dict = {
             "_id": user.id,
-            "infinite": True if duration is "0h0m" else False,
+            "infinite": True if duration.seconds == 0 else False,
             "muted_by": ctx.author.id,
             "in_channel": ctx.message.channel.id,
             "applied_at": datetime.datetime.now(),
-            "muted_until": datetime.datetime.now() + datetime.timedelta(hours=duration_self.hour, minutes=duration_self.minute)
+            "muted_until": datetime.datetime.now() + duration
         }
 
         try:
             col_mutes.insert_one(mute_dict)
         except DuplicateKeyError:
-            current_muted_until = col_mutes.find_one({"_id": user.id})[
-                "muted_until"]
-            col_mutes.update_one({"_id": user.id}, {"$set": {"muted_until": current_muted_until +
-                                                             datetime.timedelta(hours=duration_self.hour, minutes=duration_self.minute)}})
-            await ctx.send(f":clock1: Extended **{user}**'s mute {duration_self.strftime('%H more hours and %M minutes.')}")
+            current_muted_until = col_mutes.find_one({"_id": user.id})["muted_until"]
+            col_mutes.update_one({"_id": user.id}, {"$set": {"muted_until": current_muted_until + duration}})
+            await ctx.send(f":clock1: Extended **{user}**'s mute by {duration}.")
         else:
             muted_role = ctx.guild.get_role(muted_role_id)
             await user.add_roles(muted_role)
-            await ctx.send(f":incoming_envelope: *Applied mute to **{user}** {'for **' + duration_self.strftime('%Hh %Mm**') if duration != 0 else 'forever'}. Reason: {reason}*")
+            await ctx.send(f":incoming_envelope: *Applied mute to **{user}** {'for **' + f'{duration}**' if duration.seconds != 0 else 'forever'}. Reason: {reason}*")
 
     @commands.has_permissions(manage_messages=True)
     @commands.command()
@@ -135,7 +126,6 @@ class MuteCog(commands.Cog):
                         await user_object.add_roles(muted_role)
                     except Exception as e:
                         raise e
-
 
 def setup(client):
     client.add_cog(MuteCog(client))
