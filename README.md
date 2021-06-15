@@ -29,4 +29,4 @@ If you want to see this cog in action, you can consider joining the server the b
 If you need support related to this code/repository, please join [this](https://discord.gg/hjH9AQVmyW) server and not the server above as [this](https://discord.gg/hjH9AQVmyW) is my development server.
 
 ## Special thanks to
-- https://github.com/chrisdewa/ | u/alexdewa
+- https://github.com/chrisdewa/
