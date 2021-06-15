@@ -26,7 +26,7 @@ This repository contains one of the cogs created for Cactus bot - dedicated for 
 
 If you want to see this cog in action, you can consider joining the server the bot was made for. [Join here](https://discord.gg/sQVdbX8rBM)
 
-If you need support related to this code/repository, please join [this](https://discord.gg/9aRBdpJ) server and not the server above as [this](https://discord.gg/9aRBdpJ) is my development server.
+If you need support related to this code/repository, please join [this](https://discord.gg/hjH9AQVmyW) server and not the server above as [this](https://discord.gg/hjH9AQVmyW) is my development server.
 
 ## Special thanks to
-- https://github.com/chrisdewa/ | u/alexdewa
+- https://github.com/chrisdewa/
