@@ -83,10 +83,11 @@ class MuteCog(commands.Cog):
         }
 
         try:
-            col_mutes.insert_one(mute_dict)
+            await col_mutes.insert_one(mute_dict)
         except DuplicateKeyError:
-            current_muted_until = col_mutes.find_one({"_id": user.id})["muted_until"]
-            col_mutes.update_one({"_id": user.id}, {"$set": {"muted_until": current_muted_until + duration}})
+            _ = await col_mutes.find_one({"_id": user.id})
+            current_muted_until = _["muted_until"]
+            await col_mutes.update_one({"_id": user.id}, {"$set": {"muted_until": current_muted_until + duration}})
             await ctx.send(f":clock1: Extended **{user}**'s mute by {duration}.")
         else:
             muted_role = ctx.guild.get_role(muted_role_id)
@@ -96,7 +97,7 @@ class MuteCog(commands.Cog):
     @commands.has_permissions(manage_messages=True)
     @commands.command()
     async def unmute(self, ctx, user: discord.Member):
-        col_mutes.delete_one({"_id": user.id})
+        await col_mutes.delete_one({"_id": user.id})
         await ctx.send(f"Unmuted `{user}` successfully.")
         muted_role = ctx.guild.get_role(muted_role_id)
         await user.remove_roles(muted_role)
@@ -104,13 +105,13 @@ class MuteCog(commands.Cog):
     @tasks.loop(seconds=5)
     async def expiration_check(self):
         # you can replace this variable with a list of dictionaries.
-        x = col_mutes.find({})
+        x = await col_mutes.find({}).to_list(length=None)
         for y in x:  # iterate through every dict in the list
             mute_dict = MuteMongo(_id=y["_id"]).to_dict()
             if not mute_dict["infinite"]:
                 guild = self.client.get_guild(guild_id)
                 if mute_dict["muted_until"] <= datetime.datetime.now():
-                    col_mutes.delete_one({"_id": mute_dict["_id"]})
+                    await col_mutes.delete_one({"_id": mute_dict["_id"]})
                     muted_channel = self.client.get_channel(
                         mute_dict["in_channel"])
                     muted_role = guild.get_role(muted_role_id)
