@@ -1,4 +1,4 @@
-# cactus-mute | Async (using Motor)
+# cactus-mute | Sync
 This repository contains one of the cogs created for Cactus bot - dedicated for muting and unmuting users.
 
 ### This repository contains the following:
